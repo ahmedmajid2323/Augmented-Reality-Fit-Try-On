@@ -1,0 +1,36 @@
+{
+  "name": "ar-fittry-v2",
+  "version": "2.0.0",
+  "description": "Asynchronous AR Virtual Try-On Application",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint src --ext js,jsx"
+  },
+  "dependencies": {
+    "@mediapipe/face_mesh": "^0.4.1633559619",
+    "@mediapipe/hands": "^0.4.1646424915",
+    "@mediapipe/pose": "^0.5.1635988162",
+    "@tensorflow/tfjs-backend-webgl": "^4.13.0",
+    "@tensorflow/tfjs-core": "^4.13.0",
+    "idb": "^7.1.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "three": "^0.158.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-basic-ssl": "^1.2.0",
+    "@vitejs/plugin-react": "^4.2.0",
+    "eslint": "^8.54.0",
+    "eslint-plugin-react": "^7.33.2",
+    "vite": "^5.0.0",
+    "vite-plugin-pwa": "^0.17.5"
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead"
+  ]
+}
