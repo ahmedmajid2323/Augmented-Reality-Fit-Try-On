@@ -35,15 +35,15 @@ Web-based AR virtual try-on application with real-time tracking for head, hand, 
 
 ## Quick Start
 
-Install dependencies
+- **Install dependencies** -
 npm install
 
-Start development server (HTTPS)
+- **Start development server (HTTPS)** -
 npm run dev
 
-Build for production
+- **Build for production** -
 npm run build
-Open https://localhost:3000
+- **Open ** - https://localhost:3000
 
 ## Usage
 
@@ -61,9 +61,8 @@ Open https://localhost:3000
 
 ## Project Structure
 
-src/
-├── managers/ # Core system (Camera, Workers, Render)
-├── workers/ # Face tracking (TensorFlow.js)
-├── components/ # React UI components
-├── config/ # Product catalog
-└── utils/ # Kalman filter, performance tools
+- **managers** - : Core system (Camera, Workers, Render)
+- **workers** - : Face tracking (TensorFlow.js)
+- **components** -: React UI components
+- **config** - : Product catalog
+- **utils** - : Kalman filter, performance tools
