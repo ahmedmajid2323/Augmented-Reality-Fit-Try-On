@@ -1,6 +1,4 @@
 // src/workers/head-tracking.worker.js
-// Fixed version - uses ImageData and adds timeout detection
-
 importScripts(
   "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@4.12.0/dist/tf-core.min.js"
 );
@@ -28,9 +26,6 @@ self.onmessage = async (event) => {
 
     case "process":
       frameCount++;
-      if (frameCount % 30 === 0) {
-        console.log("[HEAD WORKER] Frames received:", frameCount);
-      }
 
       if (!detector) {
         if (data.bitmap) data.bitmap.close();
@@ -54,26 +49,20 @@ self.onmessage = async (event) => {
 
 async function initializeDetector() {
   try {
-    console.log("[HEAD WORKER] Loading TensorFlow.js...");
-
     await tf.setBackend("webgl");
     await tf.ready();
-
-    console.log("[HEAD WORKER] ✅ Backend ready");
 
     detector = await faceLandmarksDetection.createDetector(
       faceLandmarksDetection.SupportedModels.MediaPipeFaceMesh,
       {
         runtime: "tfjs",
-        refineLandmarks: false, // Disable refinement for speed
+        refineLandmarks: false,
         maxFaces: 1,
       }
     );
 
-    console.log("[HEAD WORKER] ✅ Detector ready");
     self.postMessage({ type: "ready" });
   } catch (error) {
-    console.error("[HEAD WORKER] ❌ Init error:", error);
     self.postMessage({ type: "error", error: error.message });
   }
 }
@@ -81,67 +70,31 @@ async function initializeDetector() {
 async function processFrame(bitmap, timestamp) {
   isProcessing = true;
 
-  // Timeout detection - if processing takes > 3 seconds, something is wrong
-  const timeout = setTimeout(() => {
-    console.error(
-      "[HEAD WORKER] ⚠️ Processing timeout! estimateFaces is hanging"
-    );
-    isProcessing = false;
-  }, 3000);
-
   try {
-    console.log("[HEAD WORKER] Processing frame", frameCount);
-
-    // Convert ImageBitmap to ImageData (not canvas)
     const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
     const ctx = canvas.getContext("2d");
     ctx.drawImage(bitmap, 0, 0);
 
-    // Get ImageData
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    console.log(
-      "[HEAD WORKER] ImageData created:",
-      imageData.width,
-      "x",
-      imageData.height
-    );
-
     bitmap.close();
 
-    console.log("[HEAD WORKER] Calling estimateFaces with ImageData...");
-
-    // Create tensor from ImageData for TensorFlow.js
     const tensor = tf.browser.fromPixels(imageData);
-    console.log("[HEAD WORKER] Tensor created:", tensor.shape);
 
-    // Estimate faces
     const faces = await detector.estimateFaces(tensor, {
       flipHorizontal: false,
       staticImageMode: false,
     });
 
-    // Dispose tensor
     tensor.dispose();
 
-    clearTimeout(timeout);
-
-    console.log("[HEAD WORKER] Faces detected:", faces ? faces.length : 0);
-
     if (faces && faces.length > 0) {
-      console.log(
-        "[HEAD WORKER] ✅ Face found, keypoints:",
-        faces[0].keypoints.length
-      );
       handleFace(faces[0], imageData.width, imageData.height);
     } else {
-      console.log("[HEAD WORKER] No face detected");
       self.postMessage({ type: "tracking_lost" });
     }
 
     isProcessing = false;
   } catch (error) {
-    clearTimeout(timeout);
-    console.error("[HEAD WORKER] ❌ Error:", error);
     isProcessing = false;
     if (bitmap) bitmap.close();
   }
@@ -150,12 +103,10 @@ async function processFrame(bitmap, timestamp) {
 function handleFace(face, width, height) {
   const kp = face.keypoints;
 
-  // Approximate keypoint indices (TensorFlow uses different indices than MediaPipe)
   const leftEye = kp.find((p) => p.name === "leftEye") || kp[33] || kp[0];
   const rightEye = kp.find((p) => p.name === "rightEye") || kp[263] || kp[1];
   const nose = kp.find((p) => p.name === "noseTip") || kp[1] || kp[2];
 
-  // Normalize
   const position = {
     x: (leftEye.x + rightEye.x) / 2 / width,
     y: (leftEye.y + rightEye.y) / 2 / height,
@@ -176,7 +127,6 @@ function handleFace(face, width, height) {
 
   const eyeCenterY = (ly + ry) / 2;
   const pitch = (ny - eyeCenterY) * Math.PI * 0.3;
-
   const roll = Math.atan2(ry - ly, rx - lx);
 
   const rotation = { x: pitch, y: yaw, z: roll };
@@ -190,8 +140,6 @@ function handleFace(face, width, height) {
 
   const confidence = kp.length >= 400 ? 0.9 : 0.7;
 
-  console.log("[HEAD WORKER] Sending landmarks, confidence:", confidence);
-
   self.postMessage({
     type: "landmarks",
     position,
@@ -201,5 +149,3 @@ function handleFace(face, width, height) {
     timestamp: performance.now(),
   });
 }
-
-console.log("[HEAD WORKER] ✅ Script loaded");
