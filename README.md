@@ -1,68 +1,359 @@
-# AR-FitTry v2
+# 🎯 AR-FitTry Head - Virtual Try-On PWA
 
-Web-based AR virtual try-on application with real-time tracking for head, hand, and foot accessories.
+Application Web Progressive pour l'essayage virtuel d'accessoires de tête (chapeaux, lunettes) en réalité augmentée.
 
-## Features
+## ✨ Caractéristiques
 
-- **Head Tracking**: Try on hats, caps, glasses, and headwear
-- **Hand Tracking**: Try on rings, watches, and bracelets 
-- **Foot Tracking**: Try on shoes and sneakers 
-- Real-time 3D model overlay
-- 468-point facial landmark detection
-- Smooth tracking with AI
+- ✅ **PWA Pure** : Sans React/JSX, manifest + service worker
+- ✅ **WebXR Ready** : Support WebXR Device API
+- ✅ **Tracking Optimisé** : MediaPipe Face Mesh + Kalman Filter
+- ✅ **Performances** : Filtres hybrides (Kalman + One Euro)
+- ✅ **Mode Offline** : Fonctionne sans connexion Internet
+- ✅ **HTTPS** : Obligatoire pour la caméra et WebXR
+- ✅ **Responsive** : S'adapte à tous les écrans
 
-## Technologies Used
+## 🏗️ Architecture
 
-### Frontend
-- **React** - UI framework
-- **Three.js** - 3D graphics rendering
-- **Vite** - Build tool with HTTPS
+```
+ar-fittry-head/
+├── index.html              # Point d'entrée
+├── manifest.json           # Configuration PWA
+├── sw.js                   # Service Worker
+├── css/
+│   └── style.css          # Styles globaux
+├── js/
+│   ├── main.js            # Script principal
+│   ├── config.js          # Configuration
+│   └── modules/
+│       ├── FaceTracker.js     # Tracking facial MediaPipe
+│       ├── KalmanFilter.js    # Filtres de lissage
+│       ├── ModelManager.js    # Gestion des modèles 3D
+│       ├── RenderEngine.js    # Moteur Three.js
+│       └── WebXRManager.js    # Gestion WebXR
+├── models/head/           # Modèles 3D (.glb)
+└── assets/
+    ├── icons/            # Icônes PWA
+    └── images/           # Thumbnails
+```
 
-### AI/ML
-- **TensorFlow.js** - Face detection and tracking
-- **MediaPipeFaceMesh** - 468 facial landmarks
-- **Kalman Filter** - Motion smoothing
+## 🔧 Technologies Utilisées
 
-### Performance
-- **Web Workers** - Parallel processing
-- **OffscreenCanvas** - GPU acceleration
-- **IndexedDB** - Model caching
+### Core
+- **HTML5 / CSS3 / JavaScript ES6+**
+- **PWA** : Service Worker + Manifest
 
-### APIs
-- **getUserMedia** - Camera access
-- **WebGL** - 3D rendering
-- **GLTFLoader** - 3D model loading
+### 3D & Rendu
+- **Three.js** : Moteur 3D
+- **GLTFLoader** : Chargement modèles 3D
+- **WebXR Device API** : Réalité augmentée
 
-## Quick Start
+### IA & Tracking
+- **TensorFlow.js** : Backend ML
+- **MediaPipe Face Mesh** : 468 points faciaux
+- **Kalman Filter** : Lissage position/rotation
+- **One Euro Filter** : Lissage adaptatif
 
-- **Install dependencies** -
-npm install
+## 🚀 Installation & Démarrage
 
-- **Start development server (HTTPS)** -
-npm run dev
+### Prérequis
+- Serveur HTTPS (obligatoire pour camera + WebXR)
+- Navigateur compatible :
+  - Chrome 90+
+  - Firefox 88+
+  - Safari 14.1+
+  - Edge 90+
 
-- **Build for production** -
-npm run build
-- **Open ** - https://localhost:3000
+### Option 1 : Serveur Local HTTPS (Node.js)
 
-## Usage
+```bash
+# Installer http-server avec SSL
+npm install -g http-server
 
-1. Select category (Head/Hand/Foot)
-2. Choose a product
-3. Click "Try On"
-4. Allow camera access
-5. See product on your face in real-time!
+# Démarrer avec HTTPS
+http-server -S -C cert.pem -K key.pem -p 8080
+```
 
-## Requirements
+Générer certificat auto-signé :
+```bash
+openssl req -newkey rsa:2048 -new -nodes -x509 -days 3650 -keyout key.pem -out cert.pem
+```
 
-- Chrome 90+, Firefox 88+, Safari 14.1+
-- Webcam required
-- HTTPS required for camera access
+### Option 2 : Serveur Python HTTPS
 
-## Project Structure
+```bash
+# Créer un serveur HTTPS simple
+python3 -m http.server 8080 --bind localhost
+```
 
-- **managers** - : Core system (Camera, Workers, Render)
-- **workers** - : Face tracking (TensorFlow.js)
-- **components** -: React UI components
-- **config** - : Product catalog
-- **utils** - : Kalman filter, performance tools
+### Option 3 : Live Server (VS Code)
+
+1. Installer l'extension "Live Server"
+2. Configurer pour HTTPS dans settings.json :
+```json
+{
+  "liveServer.settings.https": {
+    "enable": true,
+    "cert": "cert.pem",
+    "key": "key.pem"
+  }
+}
+```
+
+### Accès
+Ouvrir `https://localhost:8080` dans le navigateur
+
+## 📱 Configuration
+
+### Éditer `js/config.js`
+
+```javascript
+export const CONFIG = {
+  camera: {
+    width: { ideal: 1280 },
+    height: { ideal: 720 },
+    frameRate: { ideal: 30 }
+  },
+  
+  kalman: {
+    R: 0.01,  // Noise de mesure (⬇️ = + confiance)
+    Q: 3      // Noise processus (⬆️ = + réactivité)
+  },
+  
+  faceMesh: {
+    minDetectionConfidence: 0.7,
+    minTrackingConfidence: 0.7
+  },
+  
+  debug: {
+    enabled: false  // true pour debug panel
+  }
+};
+```
+
+## 🎨 Ajouter des Produits
+
+### 1. Préparer le Modèle 3D
+- Format : `.glb` (GLTF 2.0)
+- Optimisé : < 5 MB
+- Échelle : Adaptée à la taille d'une tête
+
+### 2. Ajouter la Configuration
+
+Dans `js/config.js` :
+
+```javascript
+products: {
+  head: [
+    {
+      id: 'unique-id',
+      name: 'Nom du Produit',
+      price: 99.99,
+      modelUrl: './models/head/mon-modele.glb',
+      thumbnail: './assets/images/thumbnail.jpg',
+      type: 'hat', // ou 'glasses'
+      scale: { x: 0.05, y: 0.05, z: 0.05 },
+      offset: { x: 0, y: 0.15, z: 0.1 },
+      rotation: { x: 0, y: 0, z: 0 }
+    }
+  ]
+}
+```
+
+### 3. Ajuster la Position
+
+**Pour les chapeaux** :
+- `offset.y` : Hauteur (+ = plus haut)
+- `offset.z` : Avant/Arrière (+ = plus en arrière)
+
+**Pour les lunettes** :
+- `offset.y` : Hauteur des yeux
+- `offset.z` : Distance du visage
+
+## 🎛️ Optimisation du Tracking
+
+### Problème : Modèle tremble
+**Solution** : Augmenter le lissage
+
+```javascript
+kalman: {
+  R: 0.005,  // Plus bas = plus stable
+  Q: 2       // Plus bas = moins réactif
+}
+```
+
+### Problème : Modèle trop lent
+**Solution** : Plus de réactivité
+
+```javascript
+kalman: {
+  R: 0.02,   // Plus haut = plus réactif
+  Q: 5       // Plus haut = suit mieux
+}
+```
+
+### Problème : Mauvaise position
+**Solution** : Ajuster les calculs dans `FaceTracker.js`
+
+```javascript
+// Ligne ~180 dans calculateFacePose()
+const rawPosition = {
+  x: (leftEye.x + rightEye.x) / 2 / width,
+  y: (leftEye.y + rightEye.y) / 2 / height,
+  z: ((leftEye.z || 0) + (rightEye.z || 0)) / 2
+};
+```
+
+## 🐛 Debug
+
+### Activer le Panel Debug
+
+Dans `js/config.js` :
+```javascript
+debug: {
+  enabled: true,
+  showLandmarks: true,
+  logFPS: true
+}
+```
+
+### Console Browser
+```javascript
+// Accéder à l'app
+window.app
+
+// Stats de performance
+window.app.renderEngine.getStats()
+
+// Info tracking
+window.app.faceTracker.getAverageConfidence()
+
+// Cache modèles
+window.app.modelManager.getCacheInfo()
+```
+
+## 📊 Performances
+
+### Objectifs
+- **FPS** : 30+ (idéal 60)
+- **Latence** : < 100ms
+- **Confidence** : > 70%
+
+### Optimisations
+
+1. **Réduire la résolution vidéo**
+```javascript
+camera: {
+  width: { ideal: 640 },
+  height: { ideal: 480 }
+}
+```
+
+2. **Simplifier les modèles 3D**
+- Moins de polygones
+- Textures compressées
+- Format `.glb` optimisé
+
+3. **Désactiver les ombres**
+```javascript
+// Dans RenderEngine.js
+this.renderer.shadowMap.enabled = false;
+```
+
+## 🔒 Sécurité & Vie Privée
+
+- ✅ Aucune donnée envoyée au serveur
+- ✅ Traitement 100% local (client-side)
+- ✅ Pas de stockage de vidéo
+- ✅ HTTPS obligatoire
+- ✅ Permissions caméra explicites
+
+## 🌐 Support WebXR
+
+### Navigateurs Compatibles
+- Chrome/Edge Android (ARCore)
+- Safari iOS (ARKit) [limité]
+
+### Activer WebXR
+
+Le bouton "Mode AR" apparaît automatiquement si WebXR est supporté.
+
+### Test sans appareil AR
+Utiliser [WebXR Emulator](https://github.com/MozillaReality/WebXR-emulator-extension)
+
+## 📝 Points d'Amélioration
+
+### Tracking
+- [ ] Support multi-visages
+- [ ] Détection d'occlusion
+- [ ] Prédiction de mouvement
+- [ ] Stabilisation avancée
+
+### Fonctionnalités
+- [ ] Changement de caméra (avant/arrière)
+- [ ] Enregistrement vidéo
+- [ ] Partage social
+- [ ] Favoris/Panier
+- [ ] Comparaison côte à côte
+
+### Performances
+- [ ] Web Workers pour tracking
+- [ ] OffscreenCanvas
+- [ ] Lazy loading modèles
+- [ ] Compression texture
+
+## 🤝 Contribution
+
+### Structure du Code
+
+**Modules indépendants** : Chaque module a une responsabilité unique
+- `FaceTracker` : Tracking uniquement
+- `ModelManager` : Chargement uniquement
+- `RenderEngine` : Rendu uniquement
+
+**Pas de dépendances circulaires** : Communication via callbacks
+
+**Configuration centralisée** : Tout dans `config.js`
+
+### Conventions
+
+- **Nommage** : camelCase pour variables, PascalCase pour classes
+- **Commentaires** : JSDoc pour fonctions publiques
+- **Console** : Préfixer avec `[NomModule]`
+- **Erreurs** : Toujours catch + log détaillé
+
+## 📄 Licence
+
+Ce projet est un exemple éducatif. Libre d'utilisation et modification.
+
+## 👨‍💻 Auteur
+
+Projet universitaire - Module Extended Reality
+
+---
+
+## 🆘 Problèmes Fréquents
+
+### ❌ "Camera access denied"
+**Solution** : Autoriser la caméra dans les paramètres du navigateur
+
+### ❌ "WebXR not supported"
+**Solution** : Utiliser Chrome Android avec ARCore installé
+
+### ❌ "Tracking très instable"
+**Solution** :
+1. Bon éclairage
+2. Visage bien face à la caméra
+3. Ajuster les paramètres Kalman
+
+### ❌ "Modèle mal positionné"
+**Solution** : Ajuster `offset` dans la config du produit
+
+### ❌ "FPS trop bas"
+**Solution** :
+1. Réduire résolution caméra
+2. Simplifier modèles 3D
+3. Désactiver antialiasing
+
+---
+
+**Bon développement ! 🚀**

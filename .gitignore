@@ -1,68 +1,33 @@
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log
-pnpm-debug.log*
-lerna-debug.log*
+# Dependencies
+node_modules/
+package-lock.json
 
-# Diagnostic reports
-report.[0-9]*.json
-pids
-*.pid
-*.seed
-*.pid.lock
-*.stackdump
-
-# Runtime data
-*.tsbuildinfo
-*.tsbuildinfo.*
-
-# Build outputs
+# Build
 dist/
-dist-ssr/
 build/
 
-# Vite cache
-.vite/
-
-# Test coverage
-coverage/
-*.lcov
-
-# Dependency directories
-node_modules/
-jspm_packages/
-
-# Package manager caches
-.npm/
-.pnpm-store/
-.yarn-cache/
-.yarn/
-
-# Optional tooling caches
-.cache/
-.parcel-cache/
-.temp/
-tmp/
-temp/
-
-# Environment variables
+# Environment
 .env
-.env.*
-*.local
+.env.local
 
-# Editor directories and files
+# IDE
 .vscode/
 .idea/
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw*
+*.swp
+*.swo
 
-# OS generated files
+# OS
 .DS_Store
 Thumbs.db
-ehthumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Cache
+.cache/
+*.cache
+
+# Temporary
+*.tmp
+temp/
