@@ -259,14 +259,6 @@ camera: {
 this.renderer.shadowMap.enabled = false;
 ```
 
-## 🔒 Sécurité & Vie Privée
-
-- ✅ Aucune donnée envoyée au serveur
-- ✅ Traitement 100% local (client-side)
-- ✅ Pas de stockage de vidéo
-- ✅ HTTPS obligatoire
-- ✅ Permissions caméra explicites
-
 ## 🌐 Support WebXR
 
 ### Navigateurs Compatibles
@@ -279,81 +271,3 @@ Le bouton "Mode AR" apparaît automatiquement si WebXR est supporté.
 
 ### Test sans appareil AR
 Utiliser [WebXR Emulator](https://github.com/MozillaReality/WebXR-emulator-extension)
-
-## 📝 Points d'Amélioration
-
-### Tracking
-- [ ] Support multi-visages
-- [ ] Détection d'occlusion
-- [ ] Prédiction de mouvement
-- [ ] Stabilisation avancée
-
-### Fonctionnalités
-- [ ] Changement de caméra (avant/arrière)
-- [ ] Enregistrement vidéo
-- [ ] Partage social
-- [ ] Favoris/Panier
-- [ ] Comparaison côte à côte
-
-### Performances
-- [ ] Web Workers pour tracking
-- [ ] OffscreenCanvas
-- [ ] Lazy loading modèles
-- [ ] Compression texture
-
-## 🤝 Contribution
-
-### Structure du Code
-
-**Modules indépendants** : Chaque module a une responsabilité unique
-- `FaceTracker` : Tracking uniquement
-- `ModelManager` : Chargement uniquement
-- `RenderEngine` : Rendu uniquement
-
-**Pas de dépendances circulaires** : Communication via callbacks
-
-**Configuration centralisée** : Tout dans `config.js`
-
-### Conventions
-
-- **Nommage** : camelCase pour variables, PascalCase pour classes
-- **Commentaires** : JSDoc pour fonctions publiques
-- **Console** : Préfixer avec `[NomModule]`
-- **Erreurs** : Toujours catch + log détaillé
-
-## 📄 Licence
-
-Ce projet est un exemple éducatif. Libre d'utilisation et modification.
-
-## 👨‍💻 Auteur
-
-Projet universitaire - Module Extended Reality
-
----
-
-## 🆘 Problèmes Fréquents
-
-### ❌ "Camera access denied"
-**Solution** : Autoriser la caméra dans les paramètres du navigateur
-
-### ❌ "WebXR not supported"
-**Solution** : Utiliser Chrome Android avec ARCore installé
-
-### ❌ "Tracking très instable"
-**Solution** :
-1. Bon éclairage
-2. Visage bien face à la caméra
-3. Ajuster les paramètres Kalman
-
-### ❌ "Modèle mal positionné"
-**Solution** : Ajuster `offset` dans la config du produit
-
-### ❌ "FPS trop bas"
-**Solution** :
-1. Réduire résolution caméra
-2. Simplifier modèles 3D
-3. Désactiver antialiasing
-
----
-
-**Bon développement ! 🚀**
