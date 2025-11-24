@@ -520,4 +520,3 @@ const worldPos = {
 
 ---
 
-**Bon courage pour votre projet ! 🚀**
