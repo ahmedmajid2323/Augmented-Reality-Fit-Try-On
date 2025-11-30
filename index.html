@@ -33,7 +33,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter@4.13.0/dist/tf-converter.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@4.13.0/dist/tf-backend-webgl.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection@1.0.2/dist/face-landmarks-detection.min.js"></script>
-
     <script type="module" src="js/main.js"></script>
     
 </head>
@@ -79,13 +78,6 @@
 
             <!-- Try-On View Controls -->
             <div id="try-on-controls" class="try-on-controls hidden">
-                <div class="tracking-info">
-                    <span class="tracking-indicator" id="tracking-status">
-                        <span class="indicator-dot"></span>
-                        Suivi facial : <span id="confidence-text">--</span>
-                    </span>
-                </div>
-                
                 <div class="control-buttons">
                     <button id="capture-btn" class="btn-primary">
                         📸 Capturer
@@ -100,18 +92,6 @@
             <button id="xr-button" class="xr-button hidden">
                 🥽 Mode AR
             </button>
-        </div>
-
-        <!-- Debug Panel (masqué par défaut) -->
-        <div id="debug-panel" class="debug-panel hidden">
-            <h3>Debug Info</h3>
-            <div id="debug-content">
-                <p>FPS: <span id="fps">0</span></p>
-                <p>Landmarks: <span id="landmark-count">0</span></p>
-                <p>Confidence: <span id="debug-confidence">0</span></p>
-                <p>Position: <span id="debug-position">--</span></p>
-                <p>Rotation: <span id="debug-rotation">--</span></p>
-            </div>
         </div>
     </div>
 

@@ -10,7 +10,6 @@ const STATIC_ASSETS = [
   '/js/main.js',
   '/js/config.js',
   '/js/modules/FaceTracker.js',
-  '/js/modules/KalmanFilter.js',
   '/js/modules/ModelManager.js',
   '/js/modules/RenderEngine.js',
   '/js/modules/WebXRManager.js',
