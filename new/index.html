@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#667eea">
+    <meta name="description" content="AR Virtual Try-On - Essayez des accessoires en réalité augmentée">
+    
+    <title>AR-FitTry Head - Virtual Try-On</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/png" href="assets/icons/icon-192.png">
+    <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="css/style.css">
+    
+    <!-- Three.js -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.158.0/examples/jsm/"
+        }
+      }
+    </script>
+    
+    <!-- TensorFlow.js & MediaPipe -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core@4.13.0/dist/tf-core.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter@4.13.0/dist/tf-converter.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl@4.13.0/dist/tf-backend-webgl.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection@1.0.2/dist/face-landmarks-detection.min.js"></script>
+    <script type="module" src="js/main.js"></script>
+    
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="loading-screen">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <h2>Initialisation AR...</h2>
+            <p id="loading-status">Chargement des modèles</p>
+            <div class="progress-bar">
+                <div id="progress-fill" class="progress-fill"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App Container -->
+    <div id="app-container" class="hidden">
+        <!-- Video Feed (caméra) -->
+        <video id="webcam" autoplay playsinline muted></video>
+        
+        <!-- Canvas pour le rendu 3D -->
+        <canvas id="ar-canvas"></canvas>
+        
+        <!-- UI Controls -->
+        <div class="ui-container">
+            <!-- Top Bar -->
+            <div class="top-bar">
+                <button id="back-btn" class="btn-icon hidden">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                        <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
+                    </svg>
+                </button>
+                <h1 id="app-title">Choisissez un accessoire</h1>
+            </div>
+
+            <!-- Product Gallery -->
+            <div id="product-gallery" class="product-gallery">
+                <div class="gallery-scroll">
+                    <!-- Les produits seront injectés ici par JS -->
+                </div>
+            </div>
+
+            <!-- Try-On View Controls -->
+            <div id="try-on-controls" class="try-on-controls hidden">
+                <div class="control-buttons">
+                    <button id="capture-btn" class="btn-primary">
+                        📸 Capturer
+                    </button>
+                    <button id="switch-camera-btn" class="btn-secondary">
+                        🔄 Changer
+                    </button>
+                </div>
+            </div>
+
+            <!-- WebXR Button (si disponible) -->
+            <button id="xr-button" class="xr-button hidden">
+                🥽 Mode AR
+            </button>
+        </div>
+    </div>
+
+    <!-- Error Screen -->
+    <div id="error-screen" class="error-screen hidden">
+        <div class="error-content">
+            <h2>❌ Erreur</h2>
+            <p id="error-message"></p>
+            <button id="retry-btn" class="btn-primary">Réessayer</button>
+        </div>
+    </div>
+
+    
+</body>
+</html>
