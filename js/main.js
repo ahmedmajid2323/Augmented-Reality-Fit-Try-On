@@ -34,17 +34,14 @@ class ARFitTryApp {
     this.currentModel = null;
     this.isTracking = false;
     this.currentTransform = null;
-    this.currentProductType = null; // NOUVEAU: Type de produit
+    this.currentProductType = null;
 
-    // Bind methods
+    // Bind
     this.trackingLoop = this.trackingLoop.bind(this);
     this.handleBack = this.handleBack.bind(this);
     this.handleCapture = this.handleCapture.bind(this);
   }
 
-  /**
-   * Initialise l'application
-   */
   async initialize() {
     try {
       this.updateLoadingStatus("Initialisation Face Tracker...", 30);
@@ -71,9 +68,6 @@ class ARFitTryApp {
     }
   }
 
-  /**
-   * Construit la galerie de produits
-   */
   buildGallery() {
     const gallery =
       this.elements.productGallery.querySelector(".gallery-scroll");
@@ -83,185 +77,154 @@ class ARFitTryApp {
       const card = document.createElement("div");
       card.className = "product-card";
       card.innerHTML = `
-                <div class="product-image">
-                    <img src="${product.thumbnail}" alt="${product.name}">
-                </div>
-                <div class="product-info">
-                    <h3 class="product-name">${product.name}</h3>
-                    <p class="product-price">$${product.price}</p>
-                </div>
-            `;
+        <div class="product-image">
+          <img src="${product.thumbnail}" alt="${product.name}">
+        </div>
+        <div class="product-info">
+          <h3 class="product-name">${product.name}</h3>
+          <p class="product-price">$${product.price}</p>
+        </div>
+      `;
       card.addEventListener("click", () => this.selectProduct(product));
       gallery.appendChild(card);
     });
   }
 
-  /**
-   * Configure les event listeners
-   */
   setupEventListeners() {
     this.elements.backBtn.addEventListener("click", this.handleBack);
     this.elements.captureBtn.addEventListener("click", this.handleCapture);
   }
 
   /**
-   * Détecte le type de produit basé sur son nom/ID
+   * Détection du type de produit (glasses / headphones / hat)
    */
   detectProductType(product) {
-    // Détection simple basée sur le nom
     const name = product.name.toLowerCase();
     const id = product.id.toLowerCase();
-    
-    if (name.includes("glasse") || name.includes("sunglass") || name.includes("lunette") ||
-        id.includes("glasse") || id.includes("glass")) {
+
+    if (
+      name.includes("glasse") ||
+      name.includes("sunglass") ||
+      name.includes("lunette") ||
+      id.includes("glasse") ||
+      id.includes("glass")
+    ) {
       this.currentProductType = "glasses";
       console.log("[App] 🕶️ Product type detected: glasses");
+
+    } else if (
+      name.includes("headphone") ||
+      name.includes("headset") ||
+      name.includes("earphone") ||
+      id.includes("headphone") ||
+      id.includes("headset")
+    ) {
+      this.currentProductType = "headphones";
+      console.log("[App] 🎧 Product type detected: headphones");
+
     } else {
       this.currentProductType = "hat";
       console.log("[App] 🧢 Product type detected: hat");
     }
   }
 
-  /**
-   * Sélectionne un produit
-   */
   async selectProduct(product) {
     try {
       console.log("[App] Loading product:", product.name);
 
-      // 🔥 Détecter le type de produit
       this.detectProductType(product);
 
-      // Charger le modèle
       const model = await this.modelManager.loadModel(product.modelUrl);
-
-      // Préparer le modèle avec AutoFitter
-      const prepared = this.autoFitter.prepareModel(model, this.currentProductType);
+      const prepared = this.autoFitter.prepareModel(
+        model,
+        this.currentProductType
+      );
       this.currentModel = prepared.model;
 
-      // Ajouter à la scène
       this.renderEngine.setModel(this.currentModel);
 
-      // Démarrer caméra si nécessaire
       if (!this.isTracking) {
         await this.startCamera();
         this.startTracking();
       }
 
-      // UI
       this.elements.productGallery.classList.add("hidden");
       this.elements.tryOnControls.classList.remove("hidden");
       this.elements.backBtn.classList.remove("hidden");
 
-      console.log("[App] ✅ Product loaded and ready");
+      console.log("[App] ✅ Product loaded");
     } catch (error) {
-      console.error("[App] ❌ Product selection error:", error);
-      alert("Erreur de chargement du modèle: " + error.message);
+      console.error("[App] ❌ Product error:", error);
+      alert("Erreur de chargement du modèle");
     }
   }
 
-  /**
-   * Démarre la caméra
-   */
   async startCamera() {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          facingMode: "user",
-        },
-      });
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        facingMode: "user",
+      },
+    });
 
-      this.elements.video.srcObject = stream;
+    this.elements.video.srcObject = stream;
 
-      // Attendre que la vidéo soit prête
-      await new Promise((resolve) => {
-        this.elements.video.onloadedmetadata = () => {
-          resolve();
-        };
-      });
+    await new Promise((resolve) => {
+      this.elements.video.onloadedmetadata = resolve;
+    });
 
-      await this.elements.video.play();
-
-      console.log("[App] 📹 Camera started");
-      console.log(
-        "[App] Video size:",
-        this.elements.video.videoWidth,
-        "x",
-        this.elements.video.videoHeight
-      );
-    } catch (error) {
-      console.error("[App] ❌ Camera error:", error);
-      alert("Impossible d'accéder à la caméra: " + error.message);
-      throw error;
-    }
+    await this.elements.video.play();
+    console.log("[App] 📹 Camera started");
   }
 
-  /**
-   * Démarre le tracking
-   */
   startTracking() {
     this.isTracking = true;
     this.faceTracker.startTracking();
-    console.log("[App] 🎬 Tracking started");
-
-    // Démarrer la boucle
     requestAnimationFrame(this.trackingLoop);
+    console.log("[App] 🎬 Tracking started");
   }
 
-  /**
-   * Boucle de tracking principale
-   */
   async trackingLoop() {
-    if (!this.isTracking) {
-      return;
-    }
+    if (!this.isTracking) return;
 
-    // Détecter le visage
     const faceData = await this.faceTracker.processFrame(
       this.elements.video,
       performance.now()
     );
 
     if (faceData && faceData.rawKeypoints && this.currentModel) {
-      // 🔥 Calculer la transformation avec le TYPE DE PRODUIT
       const transform = this.preciseTracker.calculateTransform(
         faceData.rawKeypoints,
         this.elements.video.videoWidth,
         this.elements.video.videoHeight,
-        this.currentProductType // PASSER LE TYPE ICI
+        this.currentProductType
       );
 
       if (transform) {
-        // 🔥 IMPORTANT: Appliquer la transformation au modèle
-        this.autoFitter.applyTransform(this.currentModel, transform, this.currentProductType);
+        this.autoFitter.applyTransform(
+          this.currentModel,
+          transform,
+          this.currentProductType
+        );
         this.currentTransform = transform;
       }
     }
 
-    // Continuer la boucle
     requestAnimationFrame(this.trackingLoop);
   }
 
-  /**
-   * Retour à la galerie
-   */
   handleBack() {
-    // Arrêter le tracking
     this.isTracking = false;
     this.faceTracker.stopTracking();
 
-    // Retirer le modèle
     this.renderEngine.setModel(null);
     this.currentModel = null;
     this.currentTransform = null;
-    this.currentProductType = null; // RESET LE TYPE
+    this.currentProductType = null;
 
-    // Reset tracker
     this.preciseTracker.reset();
 
-    // UI
     this.elements.productGallery.classList.remove("hidden");
     this.elements.tryOnControls.classList.add("hidden");
     this.elements.backBtn.classList.add("hidden");
@@ -269,77 +232,41 @@ class ARFitTryApp {
     console.log("[App] ⬅️ Back to gallery");
   }
 
-  /**
-   * Capture une photo
-   */
   handleCapture() {
     const imageData = this.renderEngine.captureImage();
-
     const link = document.createElement("a");
     link.download = `ar-try-on-${Date.now()}.png`;
     link.href = imageData;
     link.click();
-
-    console.log("[App] 📸 Photo captured");
   }
 
-  /**
-   * Met à jour le statut de chargement
-   */
   updateLoadingStatus(message, progress) {
     this.elements.loadingStatus.textContent = message;
-    const progressBar = document.getElementById("progress-fill");
-    if (progressBar) {
-      progressBar.style.width = `${progress}%`;
-    }
+    const bar = document.getElementById("progress-fill");
+    if (bar) bar.style.width = `${progress}%`;
   }
 
-  /**
-   * Nettoie les ressources
-   */
   dispose() {
     this.isTracking = false;
 
-    if (this.faceTracker) this.faceTracker.dispose();
-    if (this.renderEngine) this.renderEngine.dispose();
-    if (this.modelManager) this.modelManager.dispose();
+    this.faceTracker?.dispose();
+    this.renderEngine?.dispose();
+    this.modelManager?.dispose();
 
     if (this.elements.video.srcObject) {
-      this.elements.video.srcObject
-        .getTracks()
-        .forEach((track) => track.stop());
+      this.elements.video.srcObject.getTracks().forEach((t) => t.stop());
     }
 
-    console.log("[App] 🗑️ Resources disposed");
+    console.log("[App] 🗑️ Disposed");
   }
 }
 
-// 🚀 Démarrage de l'application
+/* 🚀 App bootstrap */
 window.addEventListener("DOMContentLoaded", () => {
   const app = new ARFitTryApp();
   app.initialize();
 
-  // Nettoyer à la fermeture
-  window.addEventListener("beforeunload", () => {
-    app.dispose();
-  });
-
-  // Exposer pour debug
-  window.app = app;
-
-  console.log("[App] 🎯 Application ready");
-});
-// 🚀 Démarrage de l'application
-window.addEventListener("DOMContentLoaded", () => {
-  const app = new ARFitTryApp();
-  app.initialize();
-
-  // Nettoyer à la fermeture
-  window.addEventListener("beforeunload", () => {
-    app.dispose();
-  });
-
-  // Exposer pour debug
+  window.addEventListener("beforeunload", () => app.dispose());
   window.app = app;
 
   console.log("[App] 🎯 Application ready");
