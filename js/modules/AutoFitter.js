@@ -1,10 +1,11 @@
-import * as THREE from 'three';
+import * as THREE from 'three'; 
 
 /**
  * 🎯 AutoFitter - Ajustement automatique parfait
  * Analyse le modèle et calcule le placement optimal automatiquement
  */
 export class AutoFitter {
+
     /**
      * Analyse un modèle 3D et retourne ses caractéristiques
      */
@@ -23,13 +24,13 @@ export class AutoFitter {
             height: size.y,
             width: size.x,
             depth: size.z,
-            // Point le plus bas (là où le chapeau touche la tête)
             bottom: box.min.y
         };
     }
     
     /**
      * Prépare un modèle pour le fitting automatique
+     * ⚠️ Used mainly for hats & glasses
      */
     prepareModel(model) {
         const analysis = this.analyzeModel(model);
@@ -46,7 +47,7 @@ export class AutoFitter {
         model.position.x = -normalizedAnalysis.center.x;
         model.position.z = -normalizedAnalysis.center.z;
         
-        // 4. Position Y = 0 au point le plus bas (le chapeau "repose" sur Y=0)
+        // 4. Position Y = 0 au point le plus bas
         model.position.y = -normalizedAnalysis.bottom;
         
         return {
@@ -56,22 +57,56 @@ export class AutoFitter {
     }
     
     /**
-     * Applique la transformation au modèle
+     * 🔄 Apply transform with product awareness
      */
-    applyTransform(model, transform) {
+    applyTransform(model, transform, productType = "hat") {
         if (!model || !transform) return;
-        
-        // Position
+
+        switch (productType) {
+            case "headphones":
+                this.applyHeadphones(model, transform);
+                break;
+
+            default:
+                this.applyDefault(model, transform);
+        }
+    }
+
+    /**
+     * 🎩 Default behavior (hats, glasses)
+     */
+    applyDefault(model, transform) {
         model.position.copy(transform.position);
-        
-        // Rotation
         model.rotation.copy(transform.rotation);
-        
-        // Scale (miroir sur X pour correspondre à la vidéo)
+
+        // Mirror X for selfie camera
         model.scale.set(
-            -transform.scale,  // Miroir X
-            transform.scale,   
+            -transform.scale,
+            transform.scale,
             transform.scale
+        );
+    }
+
+    /**
+     * 🎧 Headphones-specific fitting
+     */
+    applyHeadphones(model, transform) {
+        const { position, rotation, scale } = transform;
+
+        model.position.copy(position);
+        model.rotation.copy(rotation);
+
+        // 🎯 Fine vertical adjustment (can be tuned per model)
+        model.position.y += 0.05;
+
+        // 🧠 Clamp scale for stability
+        const safeScale = THREE.MathUtils.clamp(scale, 0.15, 0.4);
+
+        // Mirror X + uniform scale
+        model.scale.set(
+            -safeScale,
+            safeScale,
+            safeScale
         );
     }
 }
