@@ -8,51 +8,56 @@ export class PreciseTracker {
     this.previousLandmarks = null;
     this.previousScale = null;
     this.smoothingFactor = 0.3;
-    this.scaleSmoothingFactor = 0.7; // Plus = plus stable (0.5 à 0.9)
+    this.scaleSmoothingFactor = 0.7;
   }
 
   /**
    * Méthode générique qui choisit la bonne transformation selon le type
    */
   calculateTransform(keypoints, videoWidth, videoHeight, productType = "hat") {
-    if (!keypoints || keypoints.length < 468) {
-      return null;
-    }
-    
-    // Choisir la méthode selon le type de produit
-    if (productType === "glasses") {
-      return this.calculateGlassesTransform(keypoints, videoWidth, videoHeight);
-    } else {
-      // Méthode originale pour les chapeaux
-      return this.calculateHatTransform(keypoints, videoWidth, videoHeight);
+    if (!keypoints || keypoints.length < 468) return null;
+
+    switch (productType) {
+      case "glasses":
+        return this.calculateGlassesTransform(
+          keypoints,
+          videoWidth,
+          videoHeight
+        );
+
+      case "headphones":
+        return this.calculateHeadphonesTransform(
+          keypoints,
+          videoWidth,
+          videoHeight
+        );
+
+      default:
+        return this.calculateHatTransform(
+          keypoints,
+          videoWidth,
+          videoHeight
+        );
     }
   }
 
-  /**
-   * Transformation pour les CHAPEAUX (ancienne méthode renommée)
-   */
-  calculateHatTransform(keypoints, videoWidth, videoHeight) {
-    if (!keypoints || keypoints.length < 468) {
-      return null;
-    }
+  /* ============================================================
+   * 🎧 HEADPHONES
+   * ============================================================ */
 
-    // Points clés
-    const leftEye = this.getAverage(keypoints, [33, 133, 160, 159]);
-    const rightEye = this.getAverage(keypoints, [362, 263, 387, 386]);
-    const forehead = this.getAverage(keypoints, [10, 67, 109, 338, 297]);
-    const nose = keypoints[1];
+  calculateHeadphonesTransform(keypoints, videoWidth, videoHeight) {
+    // 👂 Ear landmarks
+    const leftEar = keypoints[234];
+    const rightEar = keypoints[454];
 
-    // ===== 1️⃣ ROTATION D'ABORD (nécessaire pour compensation yaw) =====
-    const rotation = this.calculateHatRotation(leftEye, rightEye, nose);
+    if (!leftEar || !rightEar) return null;
 
-    // ===== 2️⃣ SCALE avec compensation yaw =====
-    let scale = this.calculateScaleWithYawCompensation(
-      leftEye,
-      rightEye,
-      rotation.y
-    );
+    // ===== 1️⃣ ROTATION =====
+    const rotation = this.calculateHeadphonesRotation(leftEar, rightEar);
 
-    // 🔥 Lissage du scale
+    // ===== 2️⃣ SCALE (ear-to-ear distance) =====
+    let scale = this.calculateHeadphonesScale(leftEar, rightEar);
+
     if (this.previousScale !== null) {
       scale =
         this.previousScale * this.scaleSmoothingFactor +
@@ -60,7 +65,100 @@ export class PreciseTracker {
     }
     this.previousScale = scale;
 
-    // ===== 3️⃣ POSITION (avec scale pour compensation perspective) =====
+    // ===== 3️⃣ POSITION (midpoint between ears) =====
+    const position = this.calculateHeadphonesPosition(
+      leftEar,
+      rightEar,
+      scale,
+      videoWidth,
+      videoHeight
+    );
+
+    if (this.previousLandmarks) {
+      position.lerp(this.previousLandmarks.position, this.smoothingFactor);
+    }
+
+    this.previousLandmarks = { position: position.clone() };
+
+    return { position, rotation, scale };
+  }
+
+  calculateHeadphonesRotation(leftEar, rightEar) {
+    // Vector ear-to-ear
+    const dx = rightEar.x - leftEar.x;
+    const dy = rightEar.y - leftEar.y;
+
+    // Roll follows head tilt
+    const roll = Math.atan2(dy, dx);
+
+    // Headphones face camera
+    const yaw = Math.PI;
+    const pitch = 0;
+
+    return new THREE.Euler(pitch, yaw, -roll, "XYZ");
+  }
+
+  calculateHeadphonesScale(leftEar, rightEar) {
+    const earDistance = Math.sqrt(
+      Math.pow(rightEar.x - leftEar.x, 2) +
+        Math.pow(rightEar.y - leftEar.y, 2)
+    );
+
+    // Average adult head width ≈ 150–160 mm
+    const normalized = earDistance / 155;
+
+    // Headphones are bigger than glasses, smaller than hats
+    return normalized * 0.25;
+  }
+
+  calculateHeadphonesPosition(
+    leftEar,
+    rightEar,
+    scale,
+    videoWidth,
+    videoHeight
+  ) {
+    // Midpoint between ears
+    const midX = (leftEar.x + rightEar.x) / 2;
+    const midY = (leftEar.y + rightEar.y) / 2;
+
+    const normX = midX / videoWidth - 0.5;
+    const normY = midY / videoHeight - 0.5;
+
+    const worldZ = -(1 / scale);
+    const perspective = (2 + Math.abs(worldZ)) / 2;
+
+    const worldX = -normX * 2 * perspective;
+    const worldY = -(normY * 2 - 0.05) * perspective; // slightly higher
+
+    return new THREE.Vector3(worldX, worldY, worldZ);
+  }
+
+  /* ============================================================
+   * 🧢 HATS (UNCHANGED)
+   * ============================================================ */
+
+  calculateHatTransform(keypoints, videoWidth, videoHeight) {
+    const leftEye = this.getAverage(keypoints, [33, 133, 160, 159]);
+    const rightEye = this.getAverage(keypoints, [362, 263, 387, 386]);
+    const forehead = this.getAverage(keypoints, [10, 67, 109, 338, 297]);
+    const nose = keypoints[1];
+
+    const rotation = this.calculateHatRotation(leftEye, rightEye, nose);
+
+    let scale = this.calculateScaleWithYawCompensation(
+      leftEye,
+      rightEye,
+      rotation.y
+    );
+
+    if (this.previousScale !== null) {
+      scale =
+        this.previousScale * this.scaleSmoothingFactor +
+        scale * (1 - this.scaleSmoothingFactor);
+    }
+    this.previousScale = scale;
+
     const position = this.calculateHatPosition(
       forehead,
       scale,
@@ -68,7 +166,6 @@ export class PreciseTracker {
       videoHeight
     );
 
-    // Lissage position
     if (this.previousLandmarks) {
       position.lerp(this.previousLandmarks.position, this.smoothingFactor);
     }
@@ -78,198 +175,141 @@ export class PreciseTracker {
     return { position, rotation, scale };
   }
 
-  /**
-   * 🕶️ Transformation spécifique pour LUNETTES
-   * Utilise le nez comme point d'ancrage et les yeux pour le scale
-   */
-  calculateGlassesTransform(keypoints, videoWidth, videoHeight) {
-    if (!keypoints || keypoints.length < 468) {
-      return null;
-    }
-    
-    // 🔍 Points clés pour les lunettes:
-    // - Pont du nez (ancrage principal)
-    // - Yeux (pour la largeur et rotation)
-    const noseBridge = this.getAverage(keypoints, [168, 197]); // Haut du nez
-    const leftEye = keypoints[33];  // Coin interne œil gauche
-    const rightEye = keypoints[263]; // Coin interne œil droit
-    
-    // ===== 1️⃣ ROTATION (basée sur l'axe des yeux) =====
-    const rotation = this.calculateGlassesRotation(leftEye, rightEye, noseBridge);
-    
-    // ===== 2️⃣ SCALE (basé sur la distance entre les yeux) =====
-    let scale = this.calculateGlassesScale(leftEye, rightEye);
-    
-    // Lissage du scale (même que pour les chapeaux)
-    if (this.previousScale !== null) {
-      scale = this.previousScale * this.scaleSmoothingFactor + 
-              scale * (1 - this.scaleSmoothingFactor);
-    }
-    this.previousScale = scale;
-    
-    // ===== 3️⃣ POSITION (basée sur le pont du nez) =====
-    const position = this.calculateGlassesPosition(
-      noseBridge, 
-      scale, 
-      videoWidth, 
-      videoHeight
-    );
-    
-    // Lissage position
-    if (this.previousLandmarks) {
-      position.lerp(this.previousLandmarks.position, this.smoothingFactor);
-    }
-    
-    this.previousLandmarks = { position: position.clone() };
-    
-    return { position, rotation, scale };
-  }
-
-  /**
-   * Position 3D avec compensation perspective (pour chapeaux)
-   */
-  calculateHatPosition(forehead, scale, videoWidth, videoHeight) {
-    // Normaliser (0-1)
-    const normX = forehead.x / videoWidth;
-    const normY = forehead.y / videoHeight;
-
-    // Centrer (-0.5 à 0.5)
-    const centeredX = normX - 0.5;
-    const centeredY = normY - 0.5;
-
-    // Z calculé depuis l'échelle
-    const worldZ = -(1 / scale);
-
-    // Compensation perspective
-    const perspectiveFactor = (2 + Math.abs(worldZ)) / 2;
-
-    const worldX = -centeredX * 2 * perspectiveFactor;
-    const worldY = -centeredY * 2 * perspectiveFactor;
-
-    return new THREE.Vector3(worldX, worldY, worldZ);
-  }
-
-  /**
-   * Rotation de la tête (pitch, yaw, roll) - pour chapeaux
-   */
   calculateHatRotation(leftEye, rightEye, nose) {
     const eyeCenterX = (leftEye.x + rightEye.x) / 2;
     const eyeCenterY = (leftEye.y + rightEye.y) / 2;
 
-    const eyeDist = Math.sqrt(
-      Math.pow(rightEye.x - leftEye.x, 2) + Math.pow(rightEye.y - leftEye.y, 2)
+    const eyeDist = Math.hypot(
+      rightEye.x - leftEye.x,
+      rightEye.y - leftEye.y
     );
 
     const yaw = ((nose.x - eyeCenterX) / eyeDist) * 0.5;
     const pitch = ((nose.y - eyeCenterY) / eyeDist) * 0.3;
-    const roll = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x);
+    const roll = Math.atan2(
+      rightEye.y - leftEye.y,
+      rightEye.x - leftEye.x
+    );
 
     return new THREE.Euler(pitch, Math.PI + yaw, -roll, "XYZ");
   }
 
-  /**
-   * Rotation spécifique pour lunettes
-   * Basée sur la ligne des yeux
-   */
-  calculateGlassesRotation(leftEye, rightEye, noseBridge) {
-    // Calcule l'angle de la ligne entre les yeux
-    const eyeVectorX = rightEye.x - leftEye.x;
-    const eyeVectorY = rightEye.y - leftEye.y;
-    
-    // Roll (inclinaison latérale) - angle de la ligne des yeux
-    const roll = Math.atan2(eyeVectorY, eyeVectorX);
-    
-    // Pour les lunettes, on suit surtout le roll
-    // Pitch très léger basé sur la position des yeux par rapport au nez
-    const pitch = ((leftEye.y + rightEye.y) / 2 - noseBridge.y) / 100 * 0.1;
-    const yaw = Math.PI; // Rotation de base pour faire face à la caméra
-    
-    return new THREE.Euler(pitch, yaw, -roll, "XYZ");
-  }
+  calculateHatPosition(forehead, scale, videoWidth, videoHeight) {
+    const normX = forehead.x / videoWidth - 0.5;
+    const normY = forehead.y / videoHeight - 0.5;
 
-  /**
-   * Scale basé sur la distance interpupillaire (IPD)
-   */
-  calculateGlassesScale(leftEye, rightEye) {
-    // Distance entre les yeux en pixels
-    const eyeDistance = Math.sqrt(
-      Math.pow(rightEye.x - leftEye.x, 2) + 
-      Math.pow(rightEye.y - leftEye.y, 2)
-    );
-    
-    // IPD moyen adulte: ~62-64mm
-    // On normalise pour avoir un scale autour de 1
-    const normalizedScale = eyeDistance / 62;
-    
-    // Les lunettes sont généralement plus petites que les chapeaux
-    return normalizedScale * 0.1; // Réduire de moitié
-  }
-
-  /**
-   * Position basée sur le pont du nez
-   */
-  calculateGlassesPosition(noseBridge, scale, videoWidth, videoHeight) {
-    // Normaliser (0-1)
-    const normX = noseBridge.x / videoWidth;
-    const normY = noseBridge.y / videoHeight;
-    
-    // Centrer (-0.5 à 0.5)
-    const centeredX = normX - 0.5;
-    const centeredY = normY - 0.5;
-    
-    // Z calculé depuis l'échelle
     const worldZ = -(1 / scale);
-    
-    // Compensation perspective
-    const perspectiveFactor = (2 + Math.abs(worldZ)) / 2;
-    
-    // Positionner les lunettes légèrement plus bas que le pont du nez
-    const worldX = -centeredX * 1.5 * perspectiveFactor; // Moins large que les chapeaux
-    const worldY = -(centeredY * 1.5 + 0.05) * perspectiveFactor; // Légèrement plus bas
-    
-    return new THREE.Vector3(worldX, worldY, worldZ);
+    const perspective = (2 + Math.abs(worldZ)) / 2;
+
+    return new THREE.Vector3(
+      -normX * 2 * perspective,
+      -normY * 2 * perspective,
+      worldZ
+    );
   }
 
-  /**
-   * 🔥 SCALE avec compensation de l'angle yaw
-   * Quand la tête tourne, l'IPD apparent diminue, on compense!
-   */
-  calculateScaleWithYawCompensation(leftEye, rightEye, yawRadians) {
-    // IPD apparent (en pixels)
-    const apparentIPD = Math.sqrt(
-      Math.pow(rightEye.x - leftEye.x, 2) + Math.pow(rightEye.y - leftEye.y, 2)
+  /* ============================================================
+   * 🕶️ GLASSES (UNCHANGED)
+   * ============================================================ */
+
+  calculateGlassesTransform(keypoints, videoWidth, videoHeight) {
+    const noseBridge = this.getAverage(keypoints, [168, 197]);
+    const leftEye = keypoints[33];
+    const rightEye = keypoints[263];
+
+    const rotation = this.calculateGlassesRotation(
+      leftEye,
+      rightEye,
+      noseBridge
     );
 
-    // Extraire l'angle yaw réel (enlever le offset Math.PI)
-    const actualYaw = yawRadians - Math.PI;
+    let scale = this.calculateGlassesScale(leftEye, rightEye);
 
-    // 🔥 Compensation: IPD réel = IPD apparent / cos(yaw)
-    // Quand yaw = 0° (face) → cos(0) = 1 → pas de compensation
-    // Quand yaw = 45° → cos(45°) ≈ 0.7 → IPD réel plus grand
-    const yawCompensation = Math.abs(Math.cos(actualYaw));
+    if (this.previousScale !== null) {
+      scale =
+        this.previousScale * this.scaleSmoothingFactor +
+        scale * (1 - this.scaleSmoothingFactor);
+    }
+    this.previousScale = scale;
 
-    // Éviter division par zéro et limiter la compensation
-    const safeCompensation = Math.max(yawCompensation, 0.5); // Min 0.5
+    const position = this.calculateGlassesPosition(
+      noseBridge,
+      scale,
+      videoWidth,
+      videoHeight
+    );
 
-    const compensatedIPD = apparentIPD / safeCompensation;
+    if (this.previousLandmarks) {
+      position.lerp(this.previousLandmarks.position, this.smoothingFactor);
+    }
 
-    return compensatedIPD / 62;
+    this.previousLandmarks = { position: position.clone() };
+
+    return { position, rotation, scale };
   }
 
-  /**
-   * Moyenne de landmarks
-   */
+  calculateGlassesRotation(leftEye, rightEye, noseBridge) {
+    const roll = Math.atan2(
+      rightEye.y - leftEye.y,
+      rightEye.x - leftEye.x
+    );
+
+    const pitch =
+      ((leftEye.y + rightEye.y) / 2 - noseBridge.y) / 100 * 0.1;
+
+    return new THREE.Euler(pitch, Math.PI, -roll, "XYZ");
+  }
+
+  calculateGlassesScale(leftEye, rightEye) {
+    const eyeDistance = Math.hypot(
+      rightEye.x - leftEye.x,
+      rightEye.y - leftEye.y
+    );
+
+    return (eyeDistance / 62) * 0.1;
+  }
+
+  calculateGlassesPosition(noseBridge, scale, videoWidth, videoHeight) {
+    const normX = noseBridge.x / videoWidth - 0.5;
+    const normY = noseBridge.y / videoHeight - 0.5;
+
+    const worldZ = -(1 / scale);
+    const perspective = (2 + Math.abs(worldZ)) / 2;
+
+    return new THREE.Vector3(
+      -normX * 1.5 * perspective,
+      -(normY * 1.5 + 0.05) * perspective,
+      worldZ
+    );
+  }
+
+  /* ============================================================
+   * UTILS
+   * ============================================================ */
+
+  calculateScaleWithYawCompensation(leftEye, rightEye, yawRadians) {
+    const apparentIPD = Math.hypot(
+      rightEye.x - leftEye.x,
+      rightEye.y - leftEye.y
+    );
+
+    const actualYaw = yawRadians - Math.PI;
+    const compensation = Math.max(Math.abs(Math.cos(actualYaw)), 0.5);
+
+    return (apparentIPD / compensation) / 62;
+  }
+
   getAverage(keypoints, indices) {
-    let sumX = 0,
-      sumY = 0,
-      sumZ = 0;
+    let x = 0,
+      y = 0,
+      z = 0;
     indices.forEach((i) => {
-      sumX += keypoints[i].x;
-      sumY += keypoints[i].y;
-      sumZ += keypoints[i].z || 0;
+      x += keypoints[i].x;
+      y += keypoints[i].y;
+      z += keypoints[i].z || 0;
     });
     const n = indices.length;
-    return { x: sumX / n, y: sumY / n, z: sumZ / n };
+    return { x: x / n, y: y / n, z: z / n };
   }
 
   reset() {
