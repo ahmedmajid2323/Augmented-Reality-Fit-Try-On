@@ -34,6 +34,7 @@ class ARFitTryApp {
     this.currentModel = null;
     this.isTracking = false;
     this.currentTransform = null;
+    this.currentProductType = null; // NOUVEAU: Type de produit
 
     // Bind methods
     this.trackingLoop = this.trackingLoop.bind(this);
@@ -104,17 +105,38 @@ class ARFitTryApp {
   }
 
   /**
+   * Détecte le type de produit basé sur son nom/ID
+   */
+  detectProductType(product) {
+    // Détection simple basée sur le nom
+    const name = product.name.toLowerCase();
+    const id = product.id.toLowerCase();
+    
+    if (name.includes("glasse") || name.includes("sunglass") || name.includes("lunette") ||
+        id.includes("glasse") || id.includes("glass")) {
+      this.currentProductType = "glasses";
+      console.log("[App] 🕶️ Product type detected: glasses");
+    } else {
+      this.currentProductType = "hat";
+      console.log("[App] 🧢 Product type detected: hat");
+    }
+  }
+
+  /**
    * Sélectionne un produit
    */
   async selectProduct(product) {
     try {
       console.log("[App] Loading product:", product.name);
 
+      // 🔥 Détecter le type de produit
+      this.detectProductType(product);
+
       // Charger le modèle
       const model = await this.modelManager.loadModel(product.modelUrl);
 
       // Préparer le modèle avec AutoFitter
-      const prepared = this.autoFitter.prepareModel(model);
+      const prepared = this.autoFitter.prepareModel(model, this.currentProductType);
       this.currentModel = prepared.model;
 
       // Ajouter à la scène
@@ -203,18 +225,17 @@ class ARFitTryApp {
     );
 
     if (faceData && faceData.rawKeypoints && this.currentModel) {
-      // Calculer la transformation avec PreciseTracker
+      // 🔥 Calculer la transformation avec le TYPE DE PRODUIT
       const transform = this.preciseTracker.calculateTransform(
         faceData.rawKeypoints,
         this.elements.video.videoWidth,
-        this.elements.video.videoHeight
+        this.elements.video.videoHeight,
+        this.currentProductType // PASSER LE TYPE ICI
       );
 
       if (transform) {
         // 🔥 IMPORTANT: Appliquer la transformation au modèle
-        this.autoFitter.applyTransform(this.currentModel, transform);
-
-        // Sauvegarder 
+        this.autoFitter.applyTransform(this.currentModel, transform, this.currentProductType);
         this.currentTransform = transform;
       }
     }
@@ -235,6 +256,7 @@ class ARFitTryApp {
     this.renderEngine.setModel(null);
     this.currentModel = null;
     this.currentTransform = null;
+    this.currentProductType = null; // RESET LE TYPE
 
     // Reset tracker
     this.preciseTracker.reset();
@@ -292,6 +314,21 @@ class ARFitTryApp {
   }
 }
 
+// 🚀 Démarrage de l'application
+window.addEventListener("DOMContentLoaded", () => {
+  const app = new ARFitTryApp();
+  app.initialize();
+
+  // Nettoyer à la fermeture
+  window.addEventListener("beforeunload", () => {
+    app.dispose();
+  });
+
+  // Exposer pour debug
+  window.app = app;
+
+  console.log("[App] 🎯 Application ready");
+});
 // 🚀 Démarrage de l'application
 window.addEventListener("DOMContentLoaded", () => {
   const app = new ARFitTryApp();

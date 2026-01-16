@@ -42,5 +42,12 @@ export const PRODUCTS = [
     price: 24.99,
     modelUrl: "./models/head/bucket_hat.glb",
     thumbnail: "./assets/images/winter_hat_thumb.jpg",
+  },
+  {
+    id: "glasse-001",
+    name: "glasse",
+    price: 28.99,
+    modelUrl: "./models/head/lunettes_a_montures_maronne.glb",
+    thumbnail: "./assets/images/sunglasses_thumb.jpg",
   }
 ];

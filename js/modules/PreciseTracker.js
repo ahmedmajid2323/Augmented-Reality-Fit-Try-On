@@ -11,7 +11,27 @@ export class PreciseTracker {
     this.scaleSmoothingFactor = 0.7; // Plus = plus stable (0.5 à 0.9)
   }
 
-  calculateTransform(keypoints, videoWidth, videoHeight) {
+  /**
+   * Méthode générique qui choisit la bonne transformation selon le type
+   */
+  calculateTransform(keypoints, videoWidth, videoHeight, productType = "hat") {
+    if (!keypoints || keypoints.length < 468) {
+      return null;
+    }
+    
+    // Choisir la méthode selon le type de produit
+    if (productType === "glasses") {
+      return this.calculateGlassesTransform(keypoints, videoWidth, videoHeight);
+    } else {
+      // Méthode originale pour les chapeaux
+      return this.calculateHatTransform(keypoints, videoWidth, videoHeight);
+    }
+  }
+
+  /**
+   * Transformation pour les CHAPEAUX (ancienne méthode renommée)
+   */
+  calculateHatTransform(keypoints, videoWidth, videoHeight) {
     if (!keypoints || keypoints.length < 468) {
       return null;
     }
@@ -23,7 +43,7 @@ export class PreciseTracker {
     const nose = keypoints[1];
 
     // ===== 1️⃣ ROTATION D'ABORD (nécessaire pour compensation yaw) =====
-    const rotation = this.calculateRotation(leftEye, rightEye, nose);
+    const rotation = this.calculateHatRotation(leftEye, rightEye, nose);
 
     // ===== 2️⃣ SCALE avec compensation yaw =====
     let scale = this.calculateScaleWithYawCompensation(
@@ -41,7 +61,7 @@ export class PreciseTracker {
     this.previousScale = scale;
 
     // ===== 3️⃣ POSITION (avec scale pour compensation perspective) =====
-    const position = this.calculatePosition(
+    const position = this.calculateHatPosition(
       forehead,
       scale,
       videoWidth,
@@ -59,9 +79,56 @@ export class PreciseTracker {
   }
 
   /**
-   * Position 3D avec compensation perspective
+   * 🕶️ Transformation spécifique pour LUNETTES
+   * Utilise le nez comme point d'ancrage et les yeux pour le scale
    */
-  calculatePosition(forehead, scale, videoWidth, videoHeight) {
+  calculateGlassesTransform(keypoints, videoWidth, videoHeight) {
+    if (!keypoints || keypoints.length < 468) {
+      return null;
+    }
+    
+    // 🔍 Points clés pour les lunettes:
+    // - Pont du nez (ancrage principal)
+    // - Yeux (pour la largeur et rotation)
+    const noseBridge = this.getAverage(keypoints, [168, 197]); // Haut du nez
+    const leftEye = keypoints[33];  // Coin interne œil gauche
+    const rightEye = keypoints[263]; // Coin interne œil droit
+    
+    // ===== 1️⃣ ROTATION (basée sur l'axe des yeux) =====
+    const rotation = this.calculateGlassesRotation(leftEye, rightEye, noseBridge);
+    
+    // ===== 2️⃣ SCALE (basé sur la distance entre les yeux) =====
+    let scale = this.calculateGlassesScale(leftEye, rightEye);
+    
+    // Lissage du scale (même que pour les chapeaux)
+    if (this.previousScale !== null) {
+      scale = this.previousScale * this.scaleSmoothingFactor + 
+              scale * (1 - this.scaleSmoothingFactor);
+    }
+    this.previousScale = scale;
+    
+    // ===== 3️⃣ POSITION (basée sur le pont du nez) =====
+    const position = this.calculateGlassesPosition(
+      noseBridge, 
+      scale, 
+      videoWidth, 
+      videoHeight
+    );
+    
+    // Lissage position
+    if (this.previousLandmarks) {
+      position.lerp(this.previousLandmarks.position, this.smoothingFactor);
+    }
+    
+    this.previousLandmarks = { position: position.clone() };
+    
+    return { position, rotation, scale };
+  }
+
+  /**
+   * Position 3D avec compensation perspective (pour chapeaux)
+   */
+  calculateHatPosition(forehead, scale, videoWidth, videoHeight) {
     // Normaliser (0-1)
     const normX = forehead.x / videoWidth;
     const normY = forehead.y / videoHeight;
@@ -83,9 +150,9 @@ export class PreciseTracker {
   }
 
   /**
-   * Rotation de la tête (pitch, yaw, roll)
+   * Rotation de la tête (pitch, yaw, roll) - pour chapeaux
    */
-  calculateRotation(leftEye, rightEye, nose) {
+  calculateHatRotation(leftEye, rightEye, nose) {
     const eyeCenterX = (leftEye.x + rightEye.x) / 2;
     const eyeCenterY = (leftEye.y + rightEye.y) / 2;
 
@@ -98,6 +165,69 @@ export class PreciseTracker {
     const roll = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x);
 
     return new THREE.Euler(pitch, Math.PI + yaw, -roll, "XYZ");
+  }
+
+  /**
+   * Rotation spécifique pour lunettes
+   * Basée sur la ligne des yeux
+   */
+  calculateGlassesRotation(leftEye, rightEye, noseBridge) {
+    // Calcule l'angle de la ligne entre les yeux
+    const eyeVectorX = rightEye.x - leftEye.x;
+    const eyeVectorY = rightEye.y - leftEye.y;
+    
+    // Roll (inclinaison latérale) - angle de la ligne des yeux
+    const roll = Math.atan2(eyeVectorY, eyeVectorX);
+    
+    // Pour les lunettes, on suit surtout le roll
+    // Pitch très léger basé sur la position des yeux par rapport au nez
+    const pitch = ((leftEye.y + rightEye.y) / 2 - noseBridge.y) / 100 * 0.1;
+    const yaw = Math.PI; // Rotation de base pour faire face à la caméra
+    
+    return new THREE.Euler(pitch, yaw, -roll, "XYZ");
+  }
+
+  /**
+   * Scale basé sur la distance interpupillaire (IPD)
+   */
+  calculateGlassesScale(leftEye, rightEye) {
+    // Distance entre les yeux en pixels
+    const eyeDistance = Math.sqrt(
+      Math.pow(rightEye.x - leftEye.x, 2) + 
+      Math.pow(rightEye.y - leftEye.y, 2)
+    );
+    
+    // IPD moyen adulte: ~62-64mm
+    // On normalise pour avoir un scale autour de 1
+    const normalizedScale = eyeDistance / 62;
+    
+    // Les lunettes sont généralement plus petites que les chapeaux
+    return normalizedScale * 0.1; // Réduire de moitié
+  }
+
+  /**
+   * Position basée sur le pont du nez
+   */
+  calculateGlassesPosition(noseBridge, scale, videoWidth, videoHeight) {
+    // Normaliser (0-1)
+    const normX = noseBridge.x / videoWidth;
+    const normY = noseBridge.y / videoHeight;
+    
+    // Centrer (-0.5 à 0.5)
+    const centeredX = normX - 0.5;
+    const centeredY = normY - 0.5;
+    
+    // Z calculé depuis l'échelle
+    const worldZ = -(1 / scale);
+    
+    // Compensation perspective
+    const perspectiveFactor = (2 + Math.abs(worldZ)) / 2;
+    
+    // Positionner les lunettes légèrement plus bas que le pont du nez
+    const worldX = -centeredX * 1.5 * perspectiveFactor; // Moins large que les chapeaux
+    const worldY = -(centeredY * 1.5 + 0.05) * perspectiveFactor; // Légèrement plus bas
+    
+    return new THREE.Vector3(worldX, worldY, worldZ);
   }
 
   /**
